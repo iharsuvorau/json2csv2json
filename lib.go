@@ -1,24 +1,37 @@
-// JSON to CSV and CSV to JSON converter.
-
-package main
+package jsoncsv
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 )
 
-func main() {
-	// get data
+// WalkWokring does the work recursively on a bunch of files.
+func WalkWokring(outputDir, outputExt string, delimeter rune) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-	// TODO: walk through all json files in a directory recursively
-	fmt.Printf("%+v\n", os.Args[1:])
+		var outputFilename string
+
+		if !info.IsDir() && filepath.Ext(path) == ".json" {
+			outputFilename = strings.Replace(filepath.Base(path), filepath.Ext(path), "", 1) + outputExt
+			if err = Work(path, filepath.Join(outputDir, outputFilename), delimeter); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
 }
 
-// work is a main wrapper function which controls the whole workflow.
-func work(input, output, delimeter string) (err error) {
+// Work is a main wrapper function which controls the whole workflow.
+func Work(input, output string, delimeter rune) (err error) {
 	data := make(map[string]interface{})
 	if err = build(input, data); err != nil {
 		return
@@ -92,16 +105,22 @@ func iterate(parent string, data interface{}, output map[string]interface{}) {
 
 // save saves an output map to a CSV-, TSV-file. The format of the file is dependent on the delimeter
 // provided to the function: "\t" or ",".
-func save(filename, delimiter string, output map[string]interface{}) error {
-	csvFile, err := os.Create(filename)
+// TODO: use encoding/csv
+func save(filename string, delimeter rune, output map[string]interface{}) error {
+	f, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
-	defer csvFile.Close()
+	defer f.Close()
 
-	if _, err = csvFile.WriteString("id\t value\n"); err != nil {
+	w := csv.NewWriter(f)
+	w.Comma = delimeter
+
+	defer w.Flush()
+
+	if err = w.Write([]string{"id", "value"}); err != nil {
 		return err
-	} // headers
+	} // header
 
 	for id, value := range output {
 		// TODO: strip special symbols
@@ -109,11 +128,59 @@ func save(filename, delimiter string, output map[string]interface{}) error {
 		// NOTE: specific requirements, can be ignored for more general usage
 		// write only fields: title, text, lead, teaser, description
 		if strings.Contains(id, "title") || strings.Contains(id, "text") || strings.Contains(id, "lead") || strings.Contains(id, "teaser") || strings.Contains(id, "description") {
-			if _, err = csvFile.WriteString(fmt.Sprintf("%s%s \"%v\"\n", id, delimiter, value)); err != nil {
+			if err = w.Write([]string{id, fmt.Sprintf("%v", value)}); err != nil {
 				return err
 			} // rows
 		}
 	}
 
 	return nil
+}
+
+//
+
+func Read(filename string, delimeter rune) (err error) {
+	f, err := os.Open(filename)
+	if err != nil {
+		return
+	}
+
+	r := csv.NewReader(f)
+	r.Comma = delimeter
+
+	records, err := r.ReadAll()
+	if err != nil {
+		return
+	}
+
+	m := make(map[string]interface{})
+	for _, rec := range records {
+		// extract json path from id
+		fmt.Println(rec[0])
+
+		Analyze(rec[0], m)
+
+		// add the value
+		// rec[1]
+	}
+	fmt.Printf("%+v\n", m)
+
+	return nil
+}
+
+func Analyze(id string, m map[string]interface{}) {
+	parts := strings.Split(id, "/")
+
+	if len(parts) == 1 {
+		m[parts[0]] = "data"
+		return
+	}
+
+	parts1 := strings.Split(parts[0], "-")
+	if len(parts1) > 1 {
+		m[parts1[0]] = []map[string]interface{}{}
+		Analyze(strings.Join(parts[1:], "/"), m[parts1[0]])
+	} else {
+		m[parts[0]] = parts[1:]
+	}
 }
