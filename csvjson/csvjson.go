@@ -11,10 +11,44 @@ import (
 	"strings"
 )
 
-func SaveJSON(src string, delimeter rune) (err error) {
-	f, err := os.Open(src)
+// WalkWokring does the work recursively on a bunch of files.
+func WalkWokring(outputDir, outputExt string, delimeter rune) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		var outputFilename string
+
+		if !info.IsDir() && (filepath.Ext(path) == ".csv" || filepath.Ext(path) == ".tsv") {
+			outputFilename = strings.Replace(filepath.Base(path), filepath.Ext(path), "", 1) + outputExt
+			if err = Work(path, filepath.Join(outputDir, outputFilename), delimeter); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
+// Work is a main wrapper function which controls the whole workflow.
+func Work(input, output string, delimeter rune) (err error) {
+	data, err := build(input, delimeter)
 	if err != nil {
+		return err
+	}
+
+	if err = save(output, data); err != nil {
 		return
+	}
+
+	return nil
+}
+
+func build(input string, delimeter rune) (map[string]interface{}, error) {
+	f, err := os.Open(input)
+	if err != nil {
+		return nil, err
 	}
 
 	r := csv.NewReader(f)
@@ -23,24 +57,18 @@ func SaveJSON(src string, delimeter rune) (err error) {
 
 	records, err := r.ReadAll()
 	if err != nil {
-		return
+		return nil, err
 	}
-	// fmt.Printf("records: \n%+v\n", records)
 
-	m := treeFrom2DMatrix(records, idsFromRecords(records), "")
+	return treeFrom2DMatrix(records, idsFromRecords(records), ""), nil
+}
 
-	dst := strings.Replace(src, filepath.Ext(src), ".json", 1)
-
-	out, err := os.Create(dst)
+func save(output string, data map[string]interface{}) (err error) {
+	out, err := os.Create(output)
 	if err != nil {
 		return
 	}
-
-	if err = json.NewEncoder(out).Encode(m); err != nil {
-		return
-	}
-
-	return nil
+	return json.NewEncoder(out).Encode(data)
 }
 
 // treeFrom2DMatrix is an algorithm to extract useful data from joined ID string.

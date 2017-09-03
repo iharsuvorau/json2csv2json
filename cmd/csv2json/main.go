@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/iharsuvorau/jsoncsv/csvjson"
+	"github.com/iharsuvorau/json2csv2json/csvjson"
 )
 
 func main() {
@@ -55,10 +55,5 @@ func main() {
 		if err = csvjson.Work(*fileOrDir, filepath.Join(*outputDir, outputFilename), delimeterRune); err != nil {
 			log.Fatal(err)
 		}
-	}
-
-	err = csvjson.SaveJSON("samples/biodiversity.ru.tsv", '\t')
-	if err != nil {
-		log.Fatal(err)
 	}
 }
