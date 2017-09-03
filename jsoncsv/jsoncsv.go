@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -123,8 +124,6 @@ func save(filename string, delimeter rune, output map[string]interface{}) error 
 	} // header
 
 	for id, value := range output {
-		// TODO: strip special symbols
-
 		// NOTE: specific requirements, can be ignored for more general usage
 		// write only fields: title, text, lead, teaser, description
 		// if strings.Contains(id, "title") || strings.Contains(id, "text") || strings.Contains(id, "lead") || strings.Contains(id, "teaser") || strings.Contains(id, "description") {
@@ -133,9 +132,20 @@ func save(filename string, delimeter rune, output map[string]interface{}) error 
 		// 	} // rows
 		// }
 
-		// NOTE: specific requirements, can be ignored for more general usage
-		// write only fields: title, text, lead, teaser, description
-		if err = w.Write([]string{id, fmt.Sprintf("%v", value)}); err != nil {
+		var v interface{}
+		vStr, ok := value.(string)
+		if ok {
+			v = html.UnescapeString(vStr)
+		} else {
+			vInt, ok := value.(float64)
+			if ok {
+				v = vInt
+			} else {
+				return fmt.Errorf("value is unconvertible to string and int: %v", value)
+			}
+		}
+
+		if err = w.Write([]string{id, fmt.Sprintf("%v", v)}); err != nil {
 			return err
 		} // rows
 	}
