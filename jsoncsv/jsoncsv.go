@@ -118,7 +118,7 @@ func save(filename string, delimeter rune, output map[string]interface{}) error 
 
 	defer w.Flush()
 
-	if err = w.Write([]string{"id", "value"}); err != nil {
+	if err = w.Write([]string{"#id", "value"}); err != nil {
 		return err
 	} // header
 
@@ -127,11 +127,17 @@ func save(filename string, delimeter rune, output map[string]interface{}) error 
 
 		// NOTE: specific requirements, can be ignored for more general usage
 		// write only fields: title, text, lead, teaser, description
-		if strings.Contains(id, "title") || strings.Contains(id, "text") || strings.Contains(id, "lead") || strings.Contains(id, "teaser") || strings.Contains(id, "description") {
-			if err = w.Write([]string{id, fmt.Sprintf("%v", value)}); err != nil {
-				return err
-			} // rows
-		}
+		// if strings.Contains(id, "title") || strings.Contains(id, "text") || strings.Contains(id, "lead") || strings.Contains(id, "teaser") || strings.Contains(id, "description") {
+		// 	if err = w.Write([]string{id, fmt.Sprintf("%v", value)}); err != nil {
+		// 		return err
+		// 	} // rows
+		// }
+
+		// NOTE: specific requirements, can be ignored for more general usage
+		// write only fields: title, text, lead, teaser, description
+		if err = w.Write([]string{id, fmt.Sprintf("%v", value)}); err != nil {
+			return err
+		} // rows
 	}
 
 	return nil

@@ -1,4 +1,4 @@
-package jsoncsv
+package csvjson
 
 import (
 	"encoding/csv"
@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func saveJSON(src string, delimeter rune) (err error) {
+func SaveJSON(src string, delimeter rune) (err error) {
 	f, err := os.Open(src)
 	if err != nil {
 		return
@@ -19,11 +19,13 @@ func saveJSON(src string, delimeter rune) (err error) {
 
 	r := csv.NewReader(f)
 	r.Comma = delimeter
+	r.Comment = '#'
 
 	records, err := r.ReadAll()
 	if err != nil {
 		return
 	}
+	// fmt.Printf("records: \n%+v\n", records)
 
 	m := treeFrom2DMatrix(records, idsFromRecords(records), "")
 
@@ -50,6 +52,7 @@ func saveJSON(src string, delimeter rune) (err error) {
 //     2) remove first elements and pass it the func, returned values added to the slice at index
 func treeFrom2DMatrix(records, ids [][]string, parent string) map[string]interface{} {
 	m := make(map[string]interface{})
+	// fmt.Printf("ids for parent %s: \n%+v\n\n", parent, ids)
 
 	for _, v := range ids {
 		if isData(v) {
@@ -65,8 +68,19 @@ func treeFrom2DMatrix(records, ids [][]string, parent string) map[string]interfa
 			if err != nil {
 				log.Fatal(err)
 			}
+
 			// assign
-			m[v[0]] = val
+			valStr, ok := val.(string)
+			if ok {
+				valInt, err := strconv.Atoi(valStr)
+				if err != nil {
+					m[v[0]] = val
+				} else {
+					m[v[0]] = valInt
+				}
+			} else {
+				log.Fatal("value is not convertible to string")
+			}
 		} else if isMap(v) {
 			// define a new parent
 			var nparent string
@@ -125,8 +139,10 @@ func treeFrom2DMatrix(records, ids [][]string, parent string) map[string]interfa
 					nids := [][]string{}
 					for _, id := range ids {
 						if isSlice(id) {
-							_, idx := getKeyIndex(id[0])
-							if i == idx {
+							// fmt.Println("slice", id)
+							k, idx := getKeyIndex(id[0])
+							if i == idx && k == key {
+								// fmt.Println("appending", id[1:])
 								nids = append(nids, id[1:]) // delete the root key
 							}
 						}
@@ -179,24 +195,6 @@ func getKeyIndex(s string) (key string, idx int) {
 		log.Fatal(err)
 	}
 	return
-}
-
-func keysFromColumn(col []string) map[string]string {
-	keys := make(map[string]string)
-	var t string
-	for _, v := range col {
-		t = "data"
-		if strings.Contains(v, "-") {
-			size, err := findSliceLength(col, cleanName(v))
-			if err != nil {
-				log.Fatal(err)
-			}
-			t = fmt.Sprintf("slice:%d", size)
-		}
-		keys[cleanName(v)] = t
-	}
-
-	return keys
 }
 
 // isData return true if the ID has no more children and it most probably contains final data.

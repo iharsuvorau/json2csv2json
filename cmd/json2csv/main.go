@@ -10,13 +10,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/iharsuvorau/jsoncsv"
+	"github.com/iharsuvorau/json2csv2json/jsoncsv"
 )
 
 func main() {
 	fileOrDir := flag.String("i", ".", "input file or directory")
 	outputDir := flag.String("o", "./", "output directory to save files to")
-	delimeter := flag.String("d", "\t", "delimeter for the output file: \t or ,a")
+	delimeter := flag.String("d", "\t", "delimeter for the output file: \t or ,")
 	flag.Parse()
 
 	f, err := os.Open(*fileOrDir)
@@ -38,7 +38,7 @@ func main() {
 		outputExtenstion = ".tsv"
 		delimeterRune = '\t'
 	case ",":
-		outputExtenstion = ","
+		outputExtenstion = ".csv"
 		delimeterRune = ','
 	}
 

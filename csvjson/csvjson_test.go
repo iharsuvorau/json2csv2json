@@ -1,72 +1,9 @@
-package jsoncsv
+package csvjson
 
 import (
 	"encoding/json"
 	"testing"
 )
-
-// func Test_mapFromID(t *testing.T) {
-// 	ids := [][]string{
-// 		{"id"},
-// 		{"sections-0", "sections-3", "paragraphs-1", "text"},
-// 		{"sections-0", "sections-4", "title"},
-// 		{"sections-2", "title"},
-// 	}
-// 	id := ids[2]
-
-// Output:
-// id: "",
-// sections: [
-// 	{
-// 		"title": "",
-// 		section: [
-// 			{},
-// 			{},
-// 			{},
-// 			{
-// 				paragraphs: [
-// 					{},
-// 					{
-// 						text: ""
-// 					}
-// 				]
-// 			},
-// 			{
-// 				title: ""
-// 			}
-// 		]
-// 	},
-// 	{},
-// 	{
-// 		title: ""
-// 	},
-// ]
-
-// 	m := mapFromID(id, ids, 0)
-
-// 	t.Logf("%+v\n", m)
-// 	t.Fail()
-// }
-
-// func Test_iterByColumn(t *testing.T) {
-// 	ids := [][]string{
-// 		{"id"},
-// 		{"sections-0", "sections-3", "paragraphs-1", "text"},
-// 		{"sections-0", "sections-4", "title"},
-// 		{"sections-2", "title"},
-// 	}
-
-// 	m := iterByColumn(ids, 0)
-
-// 	b, err := json.MarshalIndent(m, "", "  ")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	t.Logf("json: %+s\n", b)
-
-// 	// t.Logf("map: %+v\n", m)
-// 	t.Fail()
-// }
 
 func TestTreeFrom2DMatrix(t *testing.T) {
 	records := [][]string{
@@ -79,7 +16,7 @@ func TestTreeFrom2DMatrix(t *testing.T) {
 	}
 
 	wantm := map[string]interface{}{
-		"id": "0123",
+		"id": 123,
 		"tag": map[string]interface{}{
 			"title": "tag title",
 			"name":  "tag name",
