@@ -70,14 +70,20 @@ import (
 
 func TestTreeFrom2DMatrix(t *testing.T) {
 	records := [][]string{
-		{"id", ""},
-		{"sections-0/sections-3/paragraphs-1/text", ""},
-		{"sections-0/sections-4/title", ""},
-		{"sections-1/paragraphs-0/text", ""},
+		{"id", "0123"},
+		{"tag/title", "tag title"},
+		{"tag/name", "tag name"},
+		{"sections-0/sections-3/paragraphs-1/text", "hi there"},
+		{"sections-0/sections-4/title", "main title"},
+		{"sections-1/paragraphs-0/text", "paragraph of something"},
 	}
 
 	wantm := map[string]interface{}{
-		"id": "",
+		"id": "0123",
+		"tag": map[string]interface{}{
+			"title": "tag title",
+			"name":  "tag name",
+		},
 		"sections": []map[string]interface{}{
 			{"sections": []map[string]interface{}{
 				nil,
@@ -85,12 +91,12 @@ func TestTreeFrom2DMatrix(t *testing.T) {
 				nil,
 				{"paragraphs": []map[string]interface{}{
 					nil,
-					{"text": ""},
+					{"text": "hi there"},
 				}},
-				{"title": ""},
+				{"title": "main title"},
 			}},
 			{"paragraphs": []map[string]interface{}{
-				{"text": ""},
+				{"text": "paragraph of something"},
 			}},
 		},
 	}
@@ -103,7 +109,7 @@ func TestTreeFrom2DMatrix(t *testing.T) {
 	ids := idsFromRecords(records)
 	t.Logf("ids: %+v\n", ids)
 
-	gotMap := treeFrom2DMatrix(ids)
+	gotMap := treeFrom2DMatrix(records, ids, "")
 	got, err := json.Marshal(gotMap)
 	if err != nil {
 		t.Fatal(err)

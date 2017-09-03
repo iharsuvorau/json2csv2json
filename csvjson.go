@@ -2,15 +2,17 @@ package jsoncsv
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-func Read(filename string, delimeter rune) (err error) {
-	f, err := os.Open(filename)
+func saveJSON(src string, delimeter rune) (err error) {
+	f, err := os.Open(src)
 	if err != nil {
 		return
 	}
@@ -23,39 +25,82 @@ func Read(filename string, delimeter rune) (err error) {
 		return
 	}
 
-	for _, rec := range records {
-		fmt.Println(rec[0])
+	m := treeFrom2DMatrix(records, idsFromRecords(records), "")
+
+	dst := strings.Replace(src, filepath.Ext(src), ".json", 1)
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return
 	}
 
-	// extract json paths (ids)
-	// ids := idsFromRecords(records)
-	// fmt.Printf("%+v\n", ids)
-
-	// m := mapFromIds(ids)
-	// fmt.Printf("%+v\n", m)
+	if err = json.NewEncoder(out).Encode(m); err != nil {
+		return
+	}
 
 	return nil
 }
 
-func treeFrom2DMatrix(ids [][]string) map[string]interface{} {
+// treeFrom2DMatrix is an algorithm to extract useful data from joined ID string.
+// The algorightm:
+// 1) keys with index 0 are all from the same node, so add them as keys and check each for final data or further run
+// 2) go throuhg all keys with index 0 and find slices or maps to go further
+//   1) if found a slice, then find out the amount of elements, create a slice with len(elements)
+//     1) for the length of the slice run through each index and collect keys with the keyname + index
+//     2) remove first elements and pass it the func, returned values added to the slice at index
+func treeFrom2DMatrix(records, ids [][]string, parent string) map[string]interface{} {
 	m := make(map[string]interface{})
-
-	// keys with index 0 are all from the same node, so add them as keys and check each for final data or further run
-	// go throuhg all keys with index 0 and find slices or maps to go further
-	//   if found a slice, then find out the amount of elements, create a slice with len(elements)
-	//     for the length of the slice run through each index and collect keys with the keyname + index
-	//     remove first elements and pass it the func, returned values added to the slice at index
 
 	for _, v := range ids {
 		if isData(v) {
-			m[v[0]] = ""
+			// define a new parent
+			var nparent string
+			if len(parent) > 0 {
+				nparent = strings.Join([]string{parent, v[0]}, "/")
+			} else {
+				nparent = v[0]
+			}
+			// get the value
+			val, err := getValue(records, nparent)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// assign
+			m[v[0]] = val
 		} else if isMap(v) {
-			cm := make(map[string]interface{})
-			m[v[0]] = cm
+			// define a new parent
+			var nparent string
+			if len(parent) > 0 {
+				nparent = fmt.Sprintf("%s/%s", parent, v[0])
+			} else {
+				nparent = v[0]
+			}
+
+			// collect all IDs with the key
+			key := cleanName(v[0])
+
+			// create a map if it doesn't exist yet
+			if _, ok := m[key]; !ok {
+				cm := make(map[string]interface{})
+				m[key] = cm
+			}
+
+			// collect the ids with the same key
+			nids := [][]string{}
+			for _, id := range ids {
+				if id[0] == key {
+					nids = append(nids, id[1:])
+				}
+			}
+
+			// populate each key of the map with data
+			if len(nids) > 0 {
+				m[key] = treeFrom2DMatrix(records, nids, nparent)
+			}
 		} else if isSlice(v) {
 			key := cleanName(v[0])
 
-			// create a slice if it doesnt' exist yet
+			// create a slice if it doesn't exist yet
 			if _, ok := m[key]; !ok {
 				// fmt.Println("slice create:", key)
 				size, err := findSliceLength(idsByColumn(ids, 0), key)
@@ -65,6 +110,14 @@ func treeFrom2DMatrix(ids [][]string) map[string]interface{} {
 
 				sl := make([]map[string]interface{}, size)
 				m[key] = sl
+
+				// define base part of the parent ID
+				var nparent string
+				if len(parent) > 0 {
+					nparent = fmt.Sprintf("%s/%s", parent, key)
+				} else {
+					nparent = key
+				}
 
 				// populate each element of the slice with a map
 				for i := 0; i < size; i++ {
@@ -79,18 +132,25 @@ func treeFrom2DMatrix(ids [][]string) map[string]interface{} {
 						}
 					}
 					// fmt.Println("found", nids)
+					// fmt.Println("parent", parent)
 					if len(nids) > 0 {
-						sl[i] = treeFrom2DMatrix(nids)
+						sl[i] = treeFrom2DMatrix(records, nids, fmt.Sprintf("%s-%d", nparent, i)) // append an index to the base part of parent
 					}
 				}
-			} else {
-				// fmt.Println("slice already created:", key, "skip")
 			}
-
 		}
 	}
 
 	return m
+}
+
+func getValue(records [][]string, id string) (interface{}, error) {
+	for _, rec := range records {
+		if rec[0] == id {
+			return rec[1], nil
+		}
+	}
+	return nil, fmt.Errorf("record with id %v not found", id)
 }
 
 func idsFromRecords(records [][]string) [][]string {
